@@ -8,7 +8,33 @@ A JavaScript library for building, composing, and rendering HTML elements progra
 
 ## Installation
 
-Copy the `SimpleHtmlElementPackage/` folder into your project and import from `SimpleHtmlElement.js` (ES module):
+### Browser (prebuilt global bundle)
+
+The `dist/` folder contains prebuilt IIFE bundles that expose `SimpleHtmlElement` and `ComponentWrapper` as browser globals. Use `library.min.js` for production:
+
+```html
+<script src="dist/library.min.js"></script>
+<script>
+    const el = new SimpleHtmlElement();
+    // ComponentWrapper is also available globally
+</script>
+```
+
+| File | Description |
+|---|---|
+| `dist/library.js` | Development build (readable, unminified) |
+| `dist/library.min.js` | Production build (minified) |
+
+To rebuild the bundles (requires Node.js ≥ 16):
+
+```bash
+npm install
+npm run build
+```
+
+### ES Modules (source)
+
+Import directly from the source package:
 
 ```js
 import SimpleHtmlElement from './SimpleHtmlElementPackage/SimpleHtmlElement.js';
