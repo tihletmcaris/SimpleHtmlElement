@@ -1,16 +1,42 @@
 {
-  "name": "library",
-  "version": "1.0.0",
+  "name": "@mcaris/simple-html-element",
+  "version": "1.1.0",
   "description": "A JavaScript library for building, composing, and rendering HTML elements programmatically using a fluent, chainable API — without writing raw HTML strings.",
   "main": "index.js",
+  "module": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "default": "./index.js"
+    },
+    "./dist/library.min.js": "./dist/library.min.js",
+    "./dist/library.js": "./dist/library.js"
+  },
+  "files": [
+    "dist/",
+    "SimpleHtmlElementPackage/",
+    "index.js",
+    "index.d.ts"
+  ],
   "scripts": {
     "build": "node build.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prepublishOnly": "npm run build"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "html",
+    "dom",
+    "component",
+    "builder",
+    "ui",
+    "vanilla"
+  ],
+  "author": "Tomas Brezina",
   "license": "ISC",
   "devDependencies": {
     "esbuild": "^0.21.5"
+  },
+  "dependencies": {
+    "@mcaris/simple-html-element": "^1.0.0"
   }
 }
