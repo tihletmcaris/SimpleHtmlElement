@@ -35,6 +35,10 @@ var SimpleHtmlLibrary = (() => {
   var library_exports = {};
   __export(library_exports, {
     ComponentWrapper: () => ComponentWrapper_default,
+    HtmlElementFactory: () => HtmlElementFactory_default,
+    HtmlElementObjectBuilder: () => HtmlElementObjectBuilder_default,
+    HtmlElementObservableVariable: () => HtmlElementObservableVariable_default,
+    HtmlToJson: () => HtmlElementJson_default,
     SimpleHtmlElement: () => SimpleHtmlElement_default
   });
 
@@ -2274,6 +2278,234 @@ var SimpleHtmlLibrary = (() => {
     }
   };
   var ComponentWrapper_default = ComponentWrapper;
+
+  // SimpleHtmlElementPackage/HtmlElementFactory.js
+  var HtmlElementFactory = class _HtmlElementFactory {
+    constructor(elementsObject, dataToReplace = null) {
+      this.elementsObject = elementsObject;
+      this.dataToReplace = dataToReplace;
+    }
+    build() {
+      if (this.elementsObject instanceof Object) {
+        if (this.dataToReplace !== null) {
+          this.replaceData();
+        }
+        let elementIsEmpty = true;
+        const createOnEmpty = this.elementsObject.hasOwnProperty("createOnEmpty") ? this.elementsObject.createOnEmpty : true;
+        const element = new SimpleHtmlElement_default();
+        if (this.elementsObject.hasOwnProperty("type")) {
+          element.setType(this.elementsObject.type);
+        }
+        if (this.elementsObject.hasOwnProperty("attributes")) {
+          element.setAttributes(this.elementsObject.attributes);
+        }
+        if (this.elementsObject.hasOwnProperty("children")) {
+          for (const elementObject of this.elementsObject.children) {
+            const child = new _HtmlElementFactory(elementObject).build();
+            if (child !== null) {
+              element.addElement(child);
+              elementIsEmpty = false;
+            }
+          }
+        }
+        if (this.elementsObject.hasOwnProperty("identifier")) {
+          element.setIdentifier(this.elementsObject.identifier);
+        }
+        if (this.elementsObject.hasOwnProperty("identificator")) {
+          element.setIdentifier(this.elementsObject.identificator);
+        }
+        if (this.elementsObject.hasOwnProperty("content")) {
+          if (this.elementsObject.content !== "") {
+            elementIsEmpty = false;
+          }
+          element.setContent(this.elementsObject.content);
+        }
+        if (this.elementsObject.hasOwnProperty("text")) {
+          if (this.elementsObject.text !== "") {
+            elementIsEmpty = false;
+          }
+          element.setText(this.elementsObject.content);
+        }
+        if (this.elementsObject.hasOwnProperty("changes")) {
+          element.setChanges(this.elementsObject.changes);
+        }
+        if (this.elementsObject.hasOwnProperty("changedBy")) {
+          element.setChangedBy(this.elementsObject.changedBy);
+        }
+        if (this.elementsObject.hasOwnProperty("events")) {
+          for (const event in this.elementsObject.events) {
+            const eventName = Object.keys(this.elementsObject.events[event])[0];
+            element.addEvent(eventName, this.elementsObject.events[event][eventName]);
+          }
+        }
+        return elementIsEmpty && createOnEmpty === false ? null : element;
+      }
+    }
+    replaceData() {
+      let stringifiedObject = JSON.stringify(this.elementsObject);
+      const keys = Object.keys(this.dataToReplace);
+      keys.forEach((key) => {
+        if (this.dataToReplace[key] !== null && typeof this.dataToReplace[key] === "object") {
+          const nestedKeys = Object.keys(this.dataToReplace[key]);
+          nestedKeys.forEach((nestedKey) => {
+            keys.push(`${key}.${nestedKey}`);
+            this.dataToReplace[`${key}.${nestedKey}`] = this.dataToReplace[key][nestedKey];
+          });
+        }
+      });
+      for (const key of keys) {
+        const regex = new RegExp(`{${key}}`, "g");
+        stringifiedObject = stringifiedObject.replace(regex, this.dataToReplace[key]);
+      }
+      this.elementsObject = JSON.parse(stringifiedObject);
+    }
+  };
+  var HtmlElementFactory_default = HtmlElementFactory;
+
+  // SimpleHtmlElementPackage/HtmlElementJson.js
+  var HtmlToJson = class {
+    constructor(selector) {
+      if (selector) {
+        this.element = document.querySelector(selector);
+      }
+    }
+    setFromHtml(html) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      this.element = doc.body.firstChild;
+      return this;
+    }
+    // Helper function to extract attributes from an element
+    getAttributes(element) {
+      const attributes = {};
+      for (const attr of element.attributes) {
+        attributes[attr.name] = attr.value;
+      }
+      return attributes;
+    }
+    getIdentifier(element) {
+      if (element.attributes.hasOwnProperty("data-ei")) {
+        return element.attributes["data-ei"].value;
+      }
+      return null;
+    }
+    // Helper function to create a JSON representation of an element and its children
+    elementToJson(element) {
+      if (!element) {
+        element = this.element;
+      }
+      const clonedElement = this.cloneElementWithoutChildren(element);
+      const json = {
+        type: element.tagName.toLowerCase(),
+        attributes: this.getAttributes(element),
+        content: this.getTextContentWithoutChildren(clonedElement),
+        children: []
+      };
+      const elementIdentifier = this.getIdentifier(element);
+      if (elementIdentifier !== null) {
+        json.elementIdentificator = elementIdentifier;
+      }
+      for (const child of element.children) {
+        json.children.push(this.elementToJson(child));
+      }
+      return json;
+    }
+    // Public method to get the JSON representation of the selected element and its children
+    getJson() {
+      if (!this.element) {
+        return null;
+      }
+      return this.elementToJson(this.element);
+    }
+    // Helper function to clone an element and remove its children
+    // Helper function to clone an element and remove its children
+    cloneElementWithoutChildren(element) {
+      return element.cloneNode(true);
+    }
+    getTextContentWithoutChildren(element) {
+      const childTexts = [];
+      for (const child of element.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) {
+          childTexts.push(child.textContent.trim());
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          const clonedChild = child.cloneNode(false);
+          childTexts.push(this.getTextContentWithoutChildren(clonedChild));
+        }
+      }
+      return childTexts.filter((text) => text.trim() !== "").join(" ");
+    }
+  };
+  var HtmlElementJson_default = HtmlToJson;
+
+  // SimpleHtmlElementPackage/HtmlElementObjectBuilder.js
+  var HtmlElementObjectBuilder = class _HtmlElementObjectBuilder {
+    constructor(elementsObject, elementName) {
+      this.elementsObject = elementsObject;
+      this.elementName = elementName || "element";
+      this.paddingSeparator = "	";
+    }
+    addNewLine() {
+      return "\n";
+    }
+    build() {
+      if (this.elementsObject instanceof Object) {
+        const elementVariable = this.elementName;
+        let elementString = `const ${elementVariable} = new SimpleHtmlElement();${this.addNewLine()}`;
+        if (this.elementsObject.hasOwnProperty("identifier")) {
+          elementString += `${elementVariable}.setIdentifier('${this.elementsObject.identifier}');${this.addNewLine()}`;
+        }
+        if (this.elementsObject.hasOwnProperty("type")) {
+          elementString += `${elementVariable}.setType('${this.elementsObject.type}');${this.addNewLine()}`;
+        }
+        if (this.elementsObject.hasOwnProperty("attributes")) {
+          const attributeKeys = Object.keys(this.elementsObject.attributes);
+          for (const attributeKey of attributeKeys) {
+            elementString += `${elementVariable}.setAttribute('${attributeKey}', '${this.elementsObject.attributes[attributeKey]}');${this.addNewLine()}`;
+          }
+        }
+        let childIndex = 0;
+        if (this.elementsObject.hasOwnProperty("children")) {
+          for (const elementObject of this.elementsObject.children) {
+            let child = new _HtmlElementObjectBuilder(elementObject, this.elementName + "_" + childIndex).build();
+            const depth = this.elementName.split("_").length - 1;
+            const padding = this.paddingSeparator.repeat(depth);
+            child = child.split("\n");
+            if (child.length > 0) {
+              child.forEach((line, index) => {
+                child[index] = padding + line;
+              });
+            }
+            child = child.join("\n");
+            elementString += child;
+            elementString += `${elementVariable}.addElement(${this.elementName + "_" + childIndex});${this.addNewLine()}`;
+            childIndex++;
+          }
+        }
+        if (this.elementsObject.hasOwnProperty("content")) {
+          if (this.elementsObject.content.trim() !== "") {
+            elementString += `${elementVariable}.setContent('${this.elementsObject.content}');${this.addNewLine()}`;
+          }
+        }
+        if (this.elementsObject.hasOwnProperty("text")) {
+          elementString += `${elementVariable}.setText('${this.elementsObject.content}');${this.addNewLine()}`;
+        }
+        if (this.elementsObject.hasOwnProperty("changes")) {
+          elementString += `${elementVariable}.setChanges('${this.elementsObject.changes}');${this.addNewLine()}`;
+        }
+        if (this.elementsObject.hasOwnProperty("changedBy")) {
+          elementString += `${elementVariable}.setChangedBy('${this.elementsObject.changedBy}');${this.addNewLine()}`;
+        }
+        if (this.elementsObject.hasOwnProperty("events")) {
+          for (const event in this.elementsObject.events) {
+            const eventName = Object.keys(this.elementsObject.events[event])[0];
+            elementString += `${elementVariable}.addEvent('${eventName}', () => {${this.addNewLine()}${this.elementsObject.events[event][eventName]}${this.addNewLine()}});${this.addNewLine()}`;
+          }
+        }
+        return elementString;
+      }
+    }
+  };
+  var HtmlElementObjectBuilder_default = HtmlElementObjectBuilder;
   return __toCommonJS(library_exports);
 })();
-window.SimpleHtmlElement = SimpleHtmlLibrary.SimpleHtmlElement; window.ComponentWrapper = SimpleHtmlLibrary.ComponentWrapper;
+window.SimpleHtmlElement = SimpleHtmlLibrary.SimpleHtmlElement; window.ComponentWrapper = SimpleHtmlLibrary.ComponentWrapper; window.HtmlElementObservableVariable = SimpleHtmlLibrary.HtmlElementObservableVariable; window.HtmlElementFactory = SimpleHtmlLibrary.HtmlElementFactory; window.HtmlToJson = SimpleHtmlLibrary.HtmlToJson; window.HtmlElementObjectBuilder = SimpleHtmlLibrary.HtmlElementObjectBuilder;

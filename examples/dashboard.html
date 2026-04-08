@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimpleHtmlElement — Task Dashboard</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        input[type="text"] {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+            padding: 0.6rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            outline: none;
+            flex: 1;
+            width: 100%;
+        }
+        input[type="text"]:focus { border-color: #6366f1; }
+        input[type="checkbox"] { accent-color: #6366f1; width: 1.1rem; height: 1.1rem; cursor: pointer; }
+        button { cursor: pointer; border: none; transition: opacity 0.15s; }
+        button:hover { opacity: 0.82; }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script src="../dist/library.min.js"></script>
+    <script>
+
+    // ── Observable state ──────────────────────────────────────────────────────
+    // HtmlElementObservableVariable: bind a value to any number of elements.
+    // Changing .value instantly updates every bound element in the DOM.
+    window.clockTime    = new HtmlElementObservableVariable();
+    window.totalCount   = new HtmlElementObservableVariable();
+    window.doneCount    = new HtmlElementObservableVariable();
+    window.pendingCount = new HtmlElementObservableVariable();
+
+    let tasks = [];
+    let idSeed = 0;
+
+    function updateStats() {
+        const done = tasks.filter(t => t.done).length;
+        window.totalCount.value   = String(tasks.length);
+        window.doneCount.value    = String(done);
+        window.pendingCount.value = String(tasks.length - done);
+    }
+    updateStats();
+
+    // Live clock — drives clockTime observable every second
+    function tick() { window.clockTime.value = new Date().toLocaleTimeString(); }
+    tick();
+    setInterval(tick, 1000);
+
+
+    // ── StatCard component ────────────────────────────────────────────────────
+    // Demonstrates: ComponentWrapper, addStyle(), reactive {{variable}} binding
+    class StatCard extends ComponentWrapper {
+        constructor(label, observableKey, accentColor) {
+            super();
+            this._label  = label;
+            this._key    = observableKey;
+            this._accent = accentColor;
+        }
+
+        prebuild() {
+            this.element
+                .setType('div')
+                .addStyle('background',    '#1e293b')
+                .addStyle('border-radius', '0.75rem')
+                .addStyle('padding',       '1.25rem 1.5rem')
+                .addStyle('border-top',    `3px solid ${this._accent}`)
+                .addStyle('flex',          '1')
+                .addStyle('min-width',     '120px');
+
+            this.element.addChild()
+                .setType('p')
+                .addStyle('font-size',       '0.7rem')
+                .addStyle('text-transform',  'uppercase')
+                .addStyle('letter-spacing',  '0.1em')
+                .addStyle('color',           '#94a3b8')
+                .addStyle('margin-bottom',   '0.4rem')
+                .setContent(this._label);
+
+            // {{observableKey}} — binds directly to the observable variable
+            this.element.addChild()
+                .setType('h2')
+                .addStyle('font-size',   '2.2rem')
+                .addStyle('font-weight', '700')
+                .addStyle('color',       this._accent)
+                .setContent(`{{${this._key}}}`);
+        }
+    }
+
+
+    // ── TaskItem component ────────────────────────────────────────────────────
+    // Demonstrates: ComponentWrapper, events, conditional styling
+    class TaskItem extends ComponentWrapper {
+        constructor(task, onToggle, onRemove) {
+            super();
+            this._task     = task;
+            this._onToggle = onToggle;
+            this._onRemove = onRemove;
+        }
+
+        prebuild() {
+            this.element
+                .setType('div')
+                .addStyle('display',         'flex')
+                .addStyle('align-items',     'center')
+                .addStyle('gap',             '0.75rem')
+                .addStyle('background',      this._task.done ? '#0f172a' : '#1e293b')
+                .addStyle('padding',         '0.8rem 1rem')
+                .addStyle('border-radius',   '0.5rem')
+                .addStyle('border-left',     this._task.done ? '3px solid #22c55e' : '3px solid #334155')
+                .addStyle('margin-bottom',   '0.5rem')
+                .addStyle('opacity',         this._task.done ? '0.6' : '1');
+
+            // Checkbox
+            const checkbox = this.element.addChild()
+                .setType('input')
+                .setAttribute('type', 'checkbox')
+                .addStyle('flex-shrink', '0');
+
+            if (this._task.done) {
+                checkbox.setAttribute('checked', 'true');
+            }
+            checkbox.addEvent('change', () => this._onToggle(this._task.id));
+
+            // Label
+            const label = this.element.addChild()
+                .setType('span')
+                .addStyle('flex',      '1')
+                .addStyle('font-size', '0.95rem')
+                .setContent(this._task.text);
+
+            if (this._task.done) {
+                label.addStyle('text-decoration', 'line-through').addStyle('color', '#64748b');
+            }
+
+            // Remove button
+            this.element.addChild()
+                .setType('button')
+                .addStyle('background',    '#7f1d1d')
+                .addStyle('color',         '#fca5a5')
+                .addStyle('padding',       '0.25rem 0.6rem')
+                .addStyle('border-radius', '0.35rem')
+                .addStyle('font-size',     '0.8rem')
+                .setContent('✕')
+                .addEvent('click', () => this._onRemove(this._task.id));
+        }
+    }
+
+
+    // ── Page layout ───────────────────────────────────────────────────────────
+    const app = new SimpleHtmlElement();
+    app.setType('div')
+        .addStyle('max-width', '680px')
+        .addStyle('margin',    '0 auto');
+
+    // Header
+    const header = app.addChild()
+        .setType('div')
+        .addStyle('display',         'flex')
+        .addStyle('align-items',     'baseline')
+        .addStyle('justify-content', 'space-between')
+        .addStyle('margin-bottom',   '2rem');
+
+    header.addChild()
+        .setType('h1')
+        .addStyle('font-size',   '1.5rem')
+        .addStyle('font-weight', '700')
+        .addStyle('color',       '#6366f1')
+        .setContent('Task Dashboard');
+
+    // Clock — bound to clockTime observable, updates every second
+    header.addChild()
+        .setType('span')
+        .addStyle('font-size',              '0.85rem')
+        .addStyle('color',                  '#475569')
+        .addStyle('font-variant-numeric',   'tabular-nums')
+        .setContent('{{clockTime}}');
+
+    // Stat cards row
+    const statsRow = app.addChild()
+        .setType('div')
+        .addStyle('display',        'flex')
+        .addStyle('gap',            '1rem')
+        .addStyle('margin-bottom',  '2rem');
+
+    statsRow.addElement(new StatCard('Total',   'totalCount',   '#6366f1').build());
+    statsRow.addElement(new StatCard('Done',    'doneCount',    '#22c55e').build());
+    statsRow.addElement(new StatCard('Pending', 'pendingCount', '#f59e0b').build());
+
+    // Add-task row
+    const addRow = app.addChild()
+        .setType('div')
+        .addStyle('display',        'flex')
+        .addStyle('gap',            '0.75rem')
+        .addStyle('margin-bottom',  '1.25rem');
+
+    const inputEl = addRow.addChild()
+        .setType('input')
+        .setAttribute('type',        'text')
+        .setAttribute('placeholder', 'Add a new task…');
+
+    const addBtn = addRow.addChild()
+        .setType('button')
+        .addStyle('background',    '#6366f1')
+        .addStyle('color',         '#fff')
+        .addStyle('padding',       '0.6rem 1.25rem')
+        .addStyle('border-radius', '0.5rem')
+        .addStyle('font-weight',   '600')
+        .addStyle('font-size',     '0.9rem')
+        .addStyle('white-space',   'nowrap')
+        .setContent('Add Task');
+
+    // Task list container — children are cleared and rebuilt on each change
+    const taskList = app.addChild().setType('div');
+
+    function renderTasks() {
+        taskList.clear();
+
+        if (tasks.length === 0) {
+            taskList.addChild()
+                .setType('p')
+                .addStyle('text-align', 'center')
+                .addStyle('color',      '#475569')
+                .addStyle('padding',    '2.5rem 0')
+                .setContent('No tasks yet. Add one above!');
+            return;
+        }
+
+        tasks.forEach(task => {
+            taskList.addElement(new TaskItem(
+                task,
+                (id) => {
+                    const t = tasks.find(x => x.id === id);
+                    if (t) t.done = !t.done;
+                    updateStats();
+                    renderTasks();
+                },
+                (id) => {
+                    tasks = tasks.filter(x => x.id !== id);
+                    updateStats();
+                    renderTasks();
+                }
+            ).build());
+        });
+    }
+
+    function addTask() {
+        inputEl.getDomElement().then(input => {
+            const text = input.value.trim();
+            if (!text) return;
+            tasks.push({ id: ++idSeed, text, done: false });
+            input.value = '';
+            updateStats();
+            renderTasks();
+        });
+    }
+
+    addBtn.addEvent('click', addTask);
+    inputEl.addEvent('keydown', e => { if (e.key === 'Enter') addTask(); });
+
+    // Seed tasks so the dashboard looks populated on load
+    ['Review pull request', 'Write unit tests', 'Deploy to staging'].forEach(text => {
+        tasks.push({ id: ++idSeed, text, done: false });
+    });
+    tasks[0].done = true;
+    updateStats();
+    renderTasks();
+
+    // Attach everything to the DOM in one shot
+    app.attach('#app');
+
+    </script>
+</body>
+</html>

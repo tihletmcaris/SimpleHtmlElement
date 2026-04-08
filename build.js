@@ -10,7 +10,14 @@ const sharedOptions = {
 // Combined bundle – both classes from the same file so instanceof checks work
 // when SimpleHtmlElement and ComponentWrapper are used together.
 const combinedFooter = {
-    js: 'window.SimpleHtmlElement = SimpleHtmlLibrary.SimpleHtmlElement; window.ComponentWrapper = SimpleHtmlLibrary.ComponentWrapper;',
+    js: [
+        'window.SimpleHtmlElement = SimpleHtmlLibrary.SimpleHtmlElement;',
+        'window.ComponentWrapper = SimpleHtmlLibrary.ComponentWrapper;',
+        'window.HtmlElementObservableVariable = SimpleHtmlLibrary.HtmlElementObservableVariable;',
+        'window.HtmlElementFactory = SimpleHtmlLibrary.HtmlElementFactory;',
+        'window.HtmlToJson = SimpleHtmlLibrary.HtmlToJson;',
+        'window.HtmlElementObjectBuilder = SimpleHtmlLibrary.HtmlElementObjectBuilder;',
+    ].join(' '),
 };
 
 async function build() {
