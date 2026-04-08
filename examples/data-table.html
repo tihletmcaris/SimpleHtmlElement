@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimpleHtmlElement — Data Table</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        input[type="text"], select {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+            padding: 0.55rem 0.9rem;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            outline: none;
+        }
+        input[type="text"]:focus, select:focus { border-color: #6366f1; }
+        select option { background: #1e293b; }
+        button { cursor: pointer; border: none; transition: opacity 0.15s; }
+        button:hover { opacity: 0.8; }
+        tbody tr { transition: background 0.12s; }
+        tbody tr:hover td { background: #1e293b !important; }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script src="../dist/library.min.js"></script>
+    <script>
+
+    // ── Dataset ───────────────────────────────────────────────────────────────
+    const employees = [
+        { id: 1,  name: 'Alice Martin',   dept: 'Engineering', role: 'Senior Engineer',   salary: 120000, status: 'Active'   },
+        { id: 2,  name: 'Bob Chen',       dept: 'Design',      role: 'UI Designer',        salary: 95000,  status: 'Active'   },
+        { id: 3,  name: 'Carol White',    dept: 'Engineering', role: 'Tech Lead',          salary: 145000, status: 'Active'   },
+        { id: 4,  name: 'David Kim',      dept: 'Marketing',   role: 'Growth Manager',     salary: 98000,  status: 'Inactive' },
+        { id: 5,  name: 'Eva Torres',     dept: 'Engineering', role: 'Junior Engineer',    salary: 75000,  status: 'Active'   },
+        { id: 6,  name: 'Frank Lee',      dept: 'HR',          role: 'HR Specialist',      salary: 82000,  status: 'Active'   },
+        { id: 7,  name: 'Grace Patel',    dept: 'Design',      role: 'Product Designer',   salary: 105000, status: 'Active'   },
+        { id: 8,  name: 'Henry Russo',    dept: 'Marketing',   role: 'Content Strategist', salary: 88000,  status: 'Inactive' },
+        { id: 9,  name: 'Iris Nakamura',  dept: 'Engineering', role: 'DevOps Engineer',    salary: 130000, status: 'Active'   },
+        { id: 10, name: 'James O\'Brien', dept: 'HR',          role: 'Recruiter',          salary: 78000,  status: 'Active'   },
+        { id: 11, name: 'Karen Smith',    dept: 'Design',      role: 'UX Researcher',      salary: 99000,  status: 'Active'   },
+        { id: 12, name: 'Leo Zhang',      dept: 'Engineering', role: 'Backend Engineer',   salary: 118000, status: 'Inactive' },
+    ];
+
+    // ── Observable state ──────────────────────────────────────────────────────
+    const searchQuery  = new HtmlElementObservableVariable();
+    const deptFilter   = new HtmlElementObservableVariable();
+    const sortKey      = new HtmlElementObservableVariable();
+    const sortDir      = new HtmlElementObservableVariable();
+    const rowCount     = new HtmlElementObservableVariable();
+
+    sortKey.value = 'name';
+    sortDir.value = 'asc';
+    deptFilter.value = 'All';
+
+    // ── Table body container (SimpleHtmlElement we redraw into) ───────────────
+    let tableBody = null;   // set after first draw
+    let rowCountEl = null;  // set after first draw
+
+    // ── Filter + sort logic ───────────────────────────────────────────────────
+    function getRows() {
+        const q    = searchQuery.value.toLowerCase();
+        const dept = deptFilter.value;
+        const key  = sortKey.value;
+        const dir  = sortDir.value;
+
+        let rows = employees.filter(e => {
+            const matchSearch = !q ||
+                e.name.toLowerCase().includes(q) ||
+                e.role.toLowerCase().includes(q);
+            const matchDept = dept === 'All' || e.dept === dept;
+            return matchSearch && matchDept;
+        });
+
+        rows.sort((a, b) => {
+            const av = typeof a[key] === 'string' ? a[key].toLowerCase() : a[key];
+            const bv = typeof b[key] === 'string' ? b[key].toLowerCase() : b[key];
+            if (av < bv) return dir === 'asc' ? -1 : 1;
+            if (av > bv) return dir === 'asc' ?  1 : -1;
+            return 0;
+        });
+
+        return rows;
+    }
+
+    // ── StatusBadge component ─────────────────────────────────────────────────
+    class StatusBadge extends ComponentWrapper {
+        constructor(status) {
+            super();
+            this._status = status;
+        }
+        prebuild() {
+            const active = this._status === 'Active';
+            this.element
+                .setType('span')
+                .addStyle('display',       'inline-flex')
+                .addStyle('align-items',   'center')
+                .addStyle('gap',           '0.35rem')
+                .addStyle('font-size',     '0.75rem')
+                .addStyle('font-weight',   '600')
+                .addStyle('padding',       '0.2rem 0.6rem')
+                .addStyle('border-radius', '9999px')
+                .addStyle('background',    active ? '#14532d' : '#1c1917')
+                .addStyle('color',         active ? '#4ade80' : '#a8a29e');
+
+            this.element.addChild()
+                .setType('span')
+                .addStyle('width',         '6px')
+                .addStyle('height',        '6px')
+                .addStyle('border-radius', '50%')
+                .addStyle('background',    active ? '#4ade80' : '#a8a29e')
+                .addStyle('display',       'inline-block');
+
+            this.element.addChild()
+                .setType('span')
+                .setContent(this._status);
+        }
+    }
+
+    // ── TableRow component ────────────────────────────────────────────────────
+    // Built with HtmlElementFactory — showcases JSON-driven element creation
+    class TableRow extends ComponentWrapper {
+        constructor(employee, index) {
+            super();
+            this._emp   = employee;
+            this._index = index;
+        }
+        prebuild() {
+            const e = this._emp;
+            const isEven = this._index % 2 === 0;
+
+            this.element
+                .setType('tr')
+                .addStyle('background', isEven ? '#0f172a' : '#111827');
+
+            // Use HtmlElementFactory to build the first 4 cells from a JSON descriptor
+            const cellSchema = {
+                type: 'fragment',
+                children: [
+                    { type: 'td', content: '{name}'    },
+                    { type: 'td', content: '{dept}'    },
+                    { type: 'td', content: '{role}'    },
+                    { type: 'td', content: '${salary}' }
+                ]
+            };
+
+            // Build cells via factory with data replacement
+            const cells = new HtmlElementFactory(cellSchema, {
+                name:   e.name,
+                dept:   e.dept,
+                role:   e.role,
+                salary: e.salary.toLocaleString()
+            }).build();
+
+            // Style each td
+            const colStyles = [
+                { fontWeight: '500', color: '#e2e8f0' },
+                { color: '#94a3b8' },
+                { color: '#94a3b8' },
+                { fontVariantNumeric: 'tabular-nums', color: '#a5f3fc' },
+            ];
+
+            cells.children.forEach((td, i) => {
+                td.addStyle('padding',      '0.85rem 1rem')
+                  .addStyle('border-bottom','1px solid #1e293b')
+                  .addStyle('font-size',    '0.875rem');
+                Object.entries(colStyles[i] || {}).forEach(([k, v]) => td.addStyle(k, v));
+                this.element.addElement(td);
+            });
+
+            // Status cell — built with StatusBadge component
+            const statusTd = this.element.addChild()
+                .setType('td')
+                .addStyle('padding',      '0.85rem 1rem')
+                .addStyle('border-bottom','1px solid #1e293b');
+
+            statusTd.addElement(new StatusBadge(e.status).build());
+
+
+        }
+    }
+
+    // ── SortHeader component ──────────────────────────────────────────────────
+    class SortHeader extends ComponentWrapper {
+        constructor(label, key, currentSortKey, currentSortDir, onSort) {
+            super();
+            this._label   = label;
+            this._key     = key;
+            this._sortKey = currentSortKey;
+            this._sortDir = currentSortDir;
+            this._onSort  = onSort;
+        }
+        prebuild() {
+            const isActive = this._sortKey === this._key;
+            const arrow = isActive ? (this._sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+
+            this.element
+                .setType('th')
+                .addStyle('padding',      '0.75rem 1rem')
+                .addStyle('text-align',   'left')
+                .addStyle('font-size',    '0.72rem')
+                .addStyle('font-weight',  '600')
+                .addStyle('text-transform','uppercase')
+                .addStyle('letter-spacing','0.08em')
+                .addStyle('color',        isActive ? '#a5b4fc' : '#64748b')
+                .addStyle('cursor',       'pointer')
+                .addStyle('user-select',  'none')
+                .addStyle('white-space',  'nowrap')
+                .setContent(this._label + arrow)
+                .addEvent('click', () => this._onSort(this._key));
+        }
+    }
+
+    // ── Render table body ─────────────────────────────────────────────────────
+    function renderRows() {
+        const rows = getRows();
+
+        // Update observable row count
+        rowCount.value = String(rows.length);
+
+        if (!tableBody) return;
+
+        tableBody.clear();
+        tableBody.elementDrawn = false;  // batch mode: suppress per-addElement redraws
+
+        if (rows.length === 0) {
+            const emptyRow = new SimpleHtmlElement()
+                .setType('tr');
+            emptyRow.addChild()
+                .setType('td')
+                .setAttribute('colspan', '5')
+                .addStyle('text-align',  'center')
+                .addStyle('padding',     '3rem')
+                .addStyle('color',       '#475569')
+                .addStyle('font-size',   '0.9rem')
+                .setContent('No employees match your search.');
+            tableBody.addElement(emptyRow);
+        } else {
+            rows.forEach((emp, i) => {
+                tableBody.addElement(new TableRow(emp, i).build());
+            });
+        }
+
+        tableBody.elementDrawn = true;
+        tableBody.redraw();  // single redraw after all rows are added
+    }
+
+    // ── Render column headers ─────────────────────────────────────────────────
+    let headerRow = null;
+
+    function renderHeaders() {
+        if (!headerRow) return;
+
+        const columns = [
+            { label: 'Name',       key: 'name'   },
+            { label: 'Department', key: 'dept'   },
+            { label: 'Role',       key: 'role'   },
+            { label: 'Salary',     key: 'salary' },
+            { label: 'Status',     key: 'status' },
+        ];
+
+        headerRow.clear();
+        headerRow.elementDrawn = false;  // batch mode
+        columns.forEach(col => {
+            headerRow.addElement(
+                new SortHeader(col.label, col.key, sortKey.value, sortDir.value, (key) => {
+                    if (sortKey.value === key) {
+                        sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        sortKey.value = key;
+                        sortDir.value = 'asc';
+                    }
+                    renderHeaders();
+                    renderRows();
+                }).build()
+            );
+        });
+        headerRow.elementDrawn = true;
+        headerRow.redraw();  // single redraw
+    }
+
+    // ── Page layout ───────────────────────────────────────────────────────────
+    const app = new SimpleHtmlElement()
+        .setType('div')
+        .addStyle('max-width',  '960px')
+        .addStyle('margin',     '0 auto');
+
+    // Page title
+    app.addChild()
+        .setType('h1')
+        .addStyle('font-size',   '1.4rem')
+        .addStyle('font-weight', '700')
+        .addStyle('color',       '#6366f1')
+        .addStyle('margin-bottom','0.25rem')
+        .setContent('Employee Directory');
+
+    app.addChild()
+        .setType('p')
+        .addStyle('font-size',    '0.85rem')
+        .addStyle('color',        '#475569')
+        .addStyle('margin-bottom','1.5rem')
+        .setContent('Built with SimpleHtmlElement — live search, department filter, sortable columns.');
+
+    // ── Controls bar ─────────────────────────────────────────────────────────
+    const controls = app.addChild()
+        .setType('div')
+        .addStyle('display',        'flex')
+        .addStyle('gap',            '0.75rem')
+        .addStyle('margin-bottom',  '1rem')
+        .addStyle('flex-wrap',      'wrap')
+        .addStyle('align-items',    'center');
+
+    // Search input
+    const searchInput = controls.addChild()
+        .setType('input')
+        .setAttribute('type',        'text')
+        .setAttribute('placeholder', 'Search name or role…')
+        .addStyle('flex',       '1')
+        .addStyle('min-width',  '180px');
+
+    searchInput.addEvent('input', (e) => {
+        searchQuery.value = e.target.value;
+        renderRows();
+    });
+
+    // Department filter
+    const depts = ['All', ...new Set(employees.map(e => e.dept)).values()].sort((a, b) =>
+        a === 'All' ? -1 : b === 'All' ? 1 : a.localeCompare(b)
+    );
+
+    const filterSelect = controls.addChild()
+        .setType('select')
+        .addStyle('min-width', '140px');
+
+    depts.forEach(dept => {
+        const opt = filterSelect.addChild()
+            .setType('option')
+            .setAttribute('value', dept)
+            .setContent(dept);
+        if (dept === 'All') opt.setAttribute('selected', 'true');
+    });
+
+    filterSelect.addEvent('change', (e) => {
+        deptFilter.value = e.target.value;
+        renderRows();
+    });
+
+    // Row count badge — bound to rowCount observable
+    const countBadge = controls.addChild()
+        .setType('span')
+        .addStyle('font-size',    '0.8rem')
+        .addStyle('color',        '#94a3b8')
+        .addStyle('margin-left',  'auto')
+        .addStyle('white-space',  'nowrap');
+
+    const countNum = countBadge.addChild()
+        .setType('strong')
+        .addStyle('color', '#a5b4fc');
+
+    rowCount.addObserver(countNum, 'setContent');
+
+    countBadge.addChild()
+        .setType('span')
+        .setContent(' employees');
+
+    // ── Table ─────────────────────────────────────────────────────────────────
+    const tableWrapper = app.addChild()
+        .setType('div')
+        .addStyle('overflow',      'auto')
+        .addStyle('border-radius', '0.75rem')
+        .addStyle('border',        '1px solid #1e293b');
+
+    const table = tableWrapper.addChild()
+        .setType('table')
+        .addStyle('width',           '100%')
+        .addStyle('border-collapse', 'collapse');
+
+    // thead
+    const thead = table.addChild().setType('thead');
+    const theadInner = thead.addChild()
+        .setType('tr')
+        .addStyle('background',    '#1e293b')
+        .addStyle('border-bottom', '1px solid #334155');
+
+    // tbody
+    tableBody = table.addChild().setType('tbody');
+
+    // ── Draw into DOM ─────────────────────────────────────────────────────────
+    app.attach('#app');
+
+    // Assign headerRow after draw so we can redraw it
+    headerRow = theadInner;
+
+    // Initial render
+    renderHeaders();
+    renderRows();
+
+    </script>
+</body>
+</html>
