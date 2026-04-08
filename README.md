@@ -1,6 +1,6 @@
 # SimpleHtmlElement
 
-![SimpleHtmlElement Logo](SimpleHtmlElementLogo.png)
+![SimpleHtmlElement Logo](https://raw.githubusercontent.com/tihletmcaris/SimpleHtmlElement/main/SimpleHtmlElementLogo.png)
 
 A JavaScript library for building, composing, and rendering HTML elements programmatically using a fluent, chainable API — without writing raw HTML strings.
 
