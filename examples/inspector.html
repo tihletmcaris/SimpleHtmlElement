@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Component Inspector — SimpleHtmlElement</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #0f172a;
+            color: #e2e8f0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── Layout ────────────────────────────────────────── */
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .panel {
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .left-panel {
+            width: 420px;
+            flex-shrink: 0;
+            border-right: 1px solid #1e293b;
+        }
+
+        .right-panel {
+            flex: 1;
+            background: #0a0f1e;
+        }
+
+        .panel-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #475569;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        /* ── Card preview ──────────────────────────────────── */
+        .preview-box {
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            border-radius: 0.75rem;
+            overflow: hidden;
+            border: 1px solid #1e293b;
+            background: #1e293b;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.25rem;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .card-body {
+            padding: 1rem 1.25rem;
+            background: #162032;
+        }
+
+        .card-text {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+
+        .card-tags {
+            padding: 0.75rem 1.25rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.375rem;
+            border-top: 1px solid #1e293b;
+        }
+
+        .tag {
+            background: #334155;
+            color: #94a3b8;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.2rem 0.55rem;
+            border-radius: 999px;
+        }
+
+        .card-footer {
+            padding: 0.75rem 1.25rem;
+            border-top: 1px solid #1e293b;
+        }
+
+        .card-action-btn {
+            background: #3b82f6;
+            color: #fff;
+            border: none;
+            border-radius: 0.375rem;
+            padding: 0.4rem 0.875rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .card-action-btn:hover {
+            background: #2563eb;
+        }
+
+        .star-btn {
+            background: none;
+            border: none;
+            font-size: 1.35rem;
+            line-height: 1;
+            color: #475569;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .star-btn.starred { color: #f59e0b; }
+
+        /* ── Themes ────────────────────────────────────────── */
+        .theme-blue   .card-header { background: #1e3a5f; }
+        .theme-blue   .card-title  { color: #60a5fa; }
+        .theme-purple .card-header { background: #2d1b69; }
+        .theme-purple .card-title  { color: #a78bfa; }
+        .theme-green  .card-header { background: #052e16; }
+        .theme-green  .card-title  { color: #4ade80; }
+        .theme-orange .card-header { background: #431407; }
+        .theme-orange .card-title  { color: #fb923c; }
+        .theme-red    .card-header { background: #450a0a; }
+        .theme-red    .card-title  { color: #f87171; }
+
+        /* ── Controls ──────────────────────────────────────── */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.875rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .control-group label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: #64748b;
+        }
+
+        .control-group input,
+        .control-group select {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+            border-radius: 0.375rem;
+            padding: 0.45rem 0.75rem;
+            font-size: 0.85rem;
+            width: 100%;
+        }
+
+        .control-group input:focus,
+        .control-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .tag-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .tag-row input {
+            flex: 1;
+            width: auto;
+        }
+
+        .ctrl-btn {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+            border-radius: 0.375rem;
+            padding: 0.45rem 0.875rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .ctrl-btn:hover { background: #334155; }
+
+        .toggle-btn {
+            width: 100%;
+            text-align: center;
+            margin-top: 0.25rem;
+        }
+
+        /* ── Inspector (right) ─────────────────────────────── */
+        .tab-bar {
+            display: flex;
+            gap: 0.25rem;
+            background: #060d1a;
+            border-radius: 0.5rem;
+            padding: 0.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .tab {
+            flex: 1;
+            background: none;
+            border: none;
+            color: #475569;
+            padding: 0.45rem;
+            border-radius: 0.375rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .tab.active {
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+
+        .pane { display: none; }
+        .pane.active { display: block; }
+
+        .code-block {
+            background: #060d1a;
+            border: 1px solid #1e293b;
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+            font-family: 'Cascadia Code', 'Fira Code', 'Menlo', monospace;
+            font-size: 0.73rem;
+            line-height: 1.65;
+            color: #7dd3fc;
+            white-space: pre;
+            overflow-x: auto;
+            max-height: calc(100vh - 12rem);
+            overflow-y: auto;
+        }
+
+        /* bootstrap-compatible hide */
+        .d-none { display: none !important; }
+    </style>
+    <script src="../dist/library.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script>
+
+    // ── Helper ─────────────────────────────────────────────────────────────────
+    function el() { return new SimpleHtmlElement(); }
+
+    function escapeHtml(str) {
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    // ── App state ──────────────────────────────────────────────────────────────
+    const state = {
+        title:   'Profile Card',
+        body:    'Built entirely in JavaScript — no HTML strings, no templates.',
+        theme:   'theme-blue',
+        tags:    ['Component', 'Reactive'],
+        starred: false,
+        footer:  true
+    };
+
+    // ── CardComponent ──────────────────────────────────────────────────────────
+    class CardComponent extends ComponentWrapper {
+        prebuild() {
+            this.element.setType('div').addClass('card').addClass(state.theme);
+
+            // header
+            const header  = this.element.createElement().setType('div').addClass('card-header');
+            const titleEl = this.element.createElement().setType('h3').addClass('card-title').setContent(state.title);
+            const starBtn = this.element.createElement().setType('button').addClass('star-btn').setContent('☆');
+            starBtn.setIdentifier('star-btn');
+            starBtn.addEvent('click', () => {
+                state.starred = !state.starred;
+                starBtn.setContent(state.starred ? '★' : '☆');
+                state.starred ? starBtn.addClass('starred') : starBtn.removeClass('starred');
+                refreshInspector();
+            });
+            header.setChildren([titleEl, starBtn]);
+
+            // body
+            const body = this.element.createElement().setType('div').addClass('card-body');
+            const text = this.element.createElement().setType('p').addClass('card-text').setContent(state.body);
+            body.setChildren([text]);
+
+            // tags
+            const tagsRow = this.element.createElement().setType('div').addClass('card-tags');
+            tagsRow.setIdentifier('tags-row');
+            renderTags(tagsRow);
+
+            // footer
+            const footer    = this.element.createElement().setType('div').addClass('card-footer');
+            const actionBtn = this.element.createElement().setType('button').addClass('card-action-btn').setContent('View Details →');
+            footer.setIdentifier('card-footer');
+            footer.setChildren([actionBtn]);
+
+            this.element.setChildren([header, body, tagsRow, footer]);
+        }
+    }
+
+    function renderTags(container) {
+        container.setChildren(
+            state.tags.map(tag => el().setType('span').addClass('tag').setContent(tag))
+        );
+    }
+
+    // ── Build card ─────────────────────────────────────────────────────────────
+    const cardEl = new CardComponent().build();
+
+    // ── Inspector ──────────────────────────────────────────────────────────────
+    let jsonDisplay, codeDisplay;
+
+    function refreshInspector() {
+        const html    = cardEl.html();
+        const json    = new HtmlToJson().setFromHtml(html).getJson();
+        const code    = new HtmlElementObjectBuilder(json, 'card').build();
+        const jsonStr = JSON.stringify(json, null, 2);
+        jsonDisplay.setContent(escapeHtml(jsonStr));
+        codeDisplay.setContent(escapeHtml(code));
+    }
+
+    // ── Layout ─────────────────────────────────────────────────────────────────
+    const app = el().setType('div').addClass('app-layout');
+
+    // ── Left panel ───────────────────────────────────────────────────────────
+    const leftPanel  = el().setType('div').addClass('panel left-panel');
+    const leftTitle  = el().setType('h2').addClass('panel-title').setContent('Playground');
+    const previewBox = el().setType('div').addClass('preview-box');
+    previewBox.addElement(cardEl);
+
+    // Controls
+    const controls = el().setType('div').addClass('controls');
+
+    // Title
+    const titleGroup = el().setType('div').addClass('control-group');
+    const titleLabel = el().setType('label').setContent('Title');
+    const titleInput = el().setType('input').setAttributes({ type: 'text', value: state.title });
+    titleInput.addEvent('input', (e) => {
+        state.title = e.target.value;
+        cardEl.find('h3').setContent(state.title);
+        refreshInspector();
+    });
+    titleGroup.setChildren([titleLabel, titleInput]);
+
+    // Body
+    const bodyGroup = el().setType('div').addClass('control-group');
+    const bodyLabel = el().setType('label').setContent('Body text');
+    const bodyInput = el().setType('input').setAttributes({ type: 'text', value: state.body });
+    bodyInput.addEvent('input', (e) => {
+        state.body = e.target.value;
+        cardEl.find('p').setContent(state.body);
+        refreshInspector();
+    });
+    bodyGroup.setChildren([bodyLabel, bodyInput]);
+
+    // Theme
+    const themeGroup = el().setType('div').addClass('control-group');
+    const themeLabel = el().setType('label').setContent('Theme');
+    const themeSel   = el().setType('select');
+    const themes = [
+        ['theme-blue',   'Blue'],
+        ['theme-purple', 'Purple'],
+        ['theme-green',  'Green'],
+        ['theme-orange', 'Orange'],
+        ['theme-red',    'Red']
+    ];
+    themeSel.setChildren(themes.map(([val, label]) => {
+        const opt = el().setType('option').setAttribute('value', val).setContent(label);
+        if (val === state.theme) opt.setAttribute('selected', 'selected');
+        return opt;
+    }));
+    themeSel.addEvent('change', (e) => {
+        cardEl.removeClass(state.theme);
+        state.theme = e.target.value;
+        cardEl.addClass(state.theme);
+        refreshInspector();
+    });
+    themeGroup.setChildren([themeLabel, themeSel]);
+
+    // Add tag
+    const tagGroup  = el().setType('div').addClass('control-group');
+    const tagLabel  = el().setType('label').setContent('Add tag');
+    const tagRow    = el().setType('div').addClass('tag-row');
+    const tagInput  = el().setType('input').setAttributes({ type: 'text', placeholder: 'e.g. Observable' });
+    const addTagBtn = el().setType('button').addClass('ctrl-btn').setContent('+ Add');
+    addTagBtn.addEvent('click', () => {
+        tagInput.getDomElement().then(inputEl => {
+            const val = inputEl.value.trim();
+            if (!val) return;
+            state.tags.push(val);
+            renderTags(cardEl.get('tags-row'));
+            inputEl.value = '';
+            refreshInspector();
+        });
+    });
+    tagRow.setChildren([tagInput, addTagBtn]);
+    tagGroup.setChildren([tagLabel, tagRow]);
+
+    // Toggle footer
+    const footerToggle = el().setType('button').addClass('ctrl-btn toggle-btn').setContent('Hide Footer');
+    footerToggle.addEvent('click', () => {
+        state.footer = !state.footer;
+        const footerEl = cardEl.get('card-footer');
+        if (state.footer) {
+            footerEl.show();
+            footerToggle.setContent('Hide Footer');
+        } else {
+            footerEl.hide();
+            footerToggle.setContent('Show Footer');
+        }
+        refreshInspector();
+    });
+
+    controls.setChildren([titleGroup, bodyGroup, themeGroup, tagGroup, footerToggle]);
+    leftPanel.setChildren([leftTitle, previewBox, controls]);
+
+    // ── Right panel ───────────────────────────────────────────────────────────
+    const rightPanel = el().setType('div').addClass('panel right-panel');
+    const rightTitle = el().setType('h2').addClass('panel-title').setContent('Inspector');
+
+    // Tabs
+    const tabBar  = el().setType('div').addClass('tab-bar');
+    const jsonTab = el().setType('button').addClass('tab active').setContent('JSON');
+    const codeTab = el().setType('button').addClass('tab').setContent('Generated Code');
+    tabBar.setChildren([jsonTab, codeTab]);
+
+    // Panes
+    const tabContent = el().setType('div').addClass('tab-content');
+
+    const jsonPane = el().setType('div').addClass('pane active');
+    jsonDisplay    = el().setType('pre').addClass('code-block');
+    jsonPane.setChildren([jsonDisplay]);
+
+    const codePane = el().setType('div').addClass('pane');
+    codeDisplay    = el().setType('pre').addClass('code-block');
+    codePane.setChildren([codeDisplay]);
+
+    tabContent.setChildren([jsonPane, codePane]);
+
+    // Tab switching — addClass/removeClass on both tabs and panes
+    jsonTab.addEvent('click', () => {
+        jsonTab.addClass('active');  codeTab.removeClass('active');
+        jsonPane.addClass('active'); codePane.removeClass('active');
+    });
+    codeTab.addEvent('click', () => {
+        codeTab.addClass('active');  jsonTab.removeClass('active');
+        codePane.addClass('active'); jsonPane.removeClass('active');
+    });
+
+    rightPanel.setChildren([rightTitle, tabBar, tabContent]);
+
+    // ── Assemble and draw ──────────────────────────────────────────────────────
+    app.setChildren([leftPanel, rightPanel]);
+    app.attach('#app');
+
+    // Populate inspector — all elementDrawn flags are true after attach()
+    refreshInspector();
+
+</script>
+</body>
+</html>
