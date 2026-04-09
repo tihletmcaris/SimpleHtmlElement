@@ -1,6 +1,6 @@
 {
   "name": "@mcaris/simple-html-element",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "A JavaScript library for building, composing, and rendering HTML elements programmatically using a fluent, chainable API — without writing raw HTML strings.",
   "main": "index.js",
   "module": "index.js",

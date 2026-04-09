@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimpleHtmlElement — Product Catalog</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        /* ── Layout ── */
+        .page         { max-width: 1100px; margin: 0 auto; }
+        .page-header  { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+        .controls     { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.75rem; }
+        .result-line  { margin-bottom: 1.25rem; font-size: 0.82rem; color: #64748b; }
+        .result-line strong { color: #a5b4fc; }
+        .grid         { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.25rem; }
+
+        /* ── Page title ── */
+        .page-title   { font-size: 1.4rem; font-weight: 700; color: #6366f1; }
+
+        /* ── Cart button ── */
+        .cart-btn {
+            display: flex; align-items: center; gap: 0.5rem;
+            background: #1e293b; border: 1px solid #334155; color: #e2e8f0;
+            padding: 0.45rem 1rem; border-radius: 0.5rem;
+            font-size: 0.85rem; font-weight: 600; cursor: pointer;
+            transition: border-color 0.15s;
+        }
+        .cart-btn:hover { border-color: #6366f1; }
+        .cart-count {
+            background: #6366f1; color: #fff;
+            font-size: 0.72rem; font-weight: 700;
+            min-width: 1.3rem; height: 1.3rem;
+            border-radius: 9999px;
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 0 0.3rem;
+        }
+
+        /* ── Filter buttons ── */
+        .filter-btn {
+            padding: 0.4rem 0.9rem; border-radius: 9999px;
+            font-size: 0.8rem; font-weight: 600;
+            border: 1px solid #334155; background: transparent; color: #94a3b8;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .filter-btn:hover  { border-color: #6366f1; color: #a5b4fc; }
+        .filter-btn.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+
+        /* ── Sort select ── */
+        .sort-select {
+            margin-left: auto;
+            background: #1e293b; border: 1px solid #334155; color: #e2e8f0;
+            padding: 0.4rem 0.8rem; border-radius: 0.5rem;
+            font-size: 0.82rem; outline: none; cursor: pointer;
+        }
+        .sort-select:focus { border-color: #6366f1; }
+        .sort-select option { background: #1e293b; }
+
+        /* ── Product card ── */
+        .card {
+            background: #1e293b; border-radius: 0.75rem;
+            border: 1px solid #1e293b; overflow: hidden;
+            display: flex; flex-direction: column;
+            transition: border-color 0.18s, transform 0.18s;
+        }
+        .card:hover { border-color: #6366f1; transform: translateY(-2px); }
+
+        .card-image {
+            width: 100%; aspect-ratio: 16/9;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 3rem; background: #0f172a;
+        }
+
+        .card-body  { padding: 1rem; flex: 1; display: flex; flex-direction: column; gap: 0.4rem; }
+        .card-top   { display: flex; align-items: center; gap: 0.4rem; }
+        .card-cat   { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #6366f1; }
+        .card-name  { font-size: 0.95rem; font-weight: 600; color: #f1f5f9; }
+        .card-desc  { font-size: 0.78rem; color: #64748b; line-height: 1.45; flex: 1; }
+
+        .card-footer {
+            padding: 0.75rem 1rem; border-top: 1px solid #0f172a;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .card-price { font-size: 1.05rem; font-weight: 700; color: #a5f3fc; font-variant-numeric: tabular-nums; }
+
+        /* ── Badges ── */
+        .badge      { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; padding: 0.15rem 0.45rem; border-radius: 9999px; }
+        .badge-new  { background: #1e3a5f; color: #60a5fa; }
+        .badge-sale { background: #3b1212; color: #f87171; }
+
+        /* ── Add to cart button ── */
+        .add-btn {
+            padding: 0.35rem 0.8rem; border-radius: 0.4rem;
+            font-size: 0.78rem; font-weight: 600;
+            background: #312e81; color: #a5b4fc; border: 1px solid #4338ca;
+            cursor: pointer; transition: background 0.15s;
+        }
+        .add-btn:hover   { background: #4338ca; color: #fff; }
+        .add-btn.in-cart { background: #14532d; color: #4ade80; border-color: #166534; }
+        .add-btn.in-cart:hover { background: #166534; }
+
+        /* ── Empty state ── */
+        .empty { grid-column: 1 / -1; text-align: center; padding: 4rem 2rem; color: #475569; font-size: 0.95rem; }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script src="../dist/library.min.js"></script>
+    <script>
+
+    // ── Dataset ───────────────────────────────────────────────────────────────
+    const products = [
+        { id:1,  name:'Mechanical Keyboard',       cat:'Peripherals', price:129, desc:'TKL layout, tactile switches, RGB backlight.',      icon:'⌨️',  badge:'new'  },
+        { id:2,  name:'4K Webcam',                 cat:'Peripherals', price:89,  desc:'Auto-focus, low-light correction, dual mic.',        icon:'📷',  badge:null   },
+        { id:3,  name:'USB-C Hub 10-in-1',         cat:'Accessories', price:59,  desc:'HDMI 4K, SD card, 100W PD pass-through.',            icon:'🔌',  badge:'sale' },
+        { id:4,  name:'Ultrawide Monitor',         cat:'Displays',    price:499, desc:'34" IPS, 144Hz, 1ms response, HDR400.',              icon:'🖥️',  badge:null   },
+        { id:5,  name:'Wireless Mouse',            cat:'Peripherals', price:69,  desc:'Ergonomic, 70h battery, silent click.',              icon:'🖱️',  badge:null   },
+        { id:6,  name:'Laptop Stand',              cat:'Accessories', price:39,  desc:'Aluminium, adjustable height, foldable.',            icon:'💻',  badge:null   },
+        { id:7,  name:'Noise-Cancelling Headphones',cat:'Audio',      price:249, desc:'ANC, 30h playback, multipoint pairing.',             icon:'🎧',  badge:'new'  },
+        { id:8,  name:'Stream Deck',               cat:'Accessories', price:149, desc:'15 LCD keys, fully customisable profiles.',          icon:'🎛️',  badge:null   },
+        { id:9,  name:'Studio Microphone',         cat:'Audio',       price:179, desc:'Cardioid condenser, USB-C, shock mount included.',   icon:'🎙️',  badge:null   },
+        { id:10, name:'Portable SSD 2TB',          cat:'Storage',     price:119, desc:'2000 MB/s read, USB 3.2 Gen2, durable casing.',      icon:'💾',  badge:'sale' },
+        { id:11, name:'LED Desk Lamp',             cat:'Accessories', price:45,  desc:'Wireless charging base, colour temperature control.',icon:'💡',  badge:null   },
+        { id:12, name:'4K Capture Card',           cat:'Displays',    price:199, desc:'1080p60 passthrough, low-latency USB-C.',            icon:'📺',  badge:'new'  },
+    ];
+
+    const categories = ['All', ...new Set(products.map(p => p.cat))].sort((a,b) =>
+        a === 'All' ? -1 : b === 'All' ? 1 : a.localeCompare(b)
+    );
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let activeCategory = 'All';
+    let activeSortKey  = 'name';
+    const cart         = new Set();
+    const cartCount    = new HtmlElementObservableVariable();
+    cartCount.value    = '0';
+
+    // ── Filtered + sorted rows ────────────────────────────────────────────────
+    function getRows() {
+        let rows = activeCategory === 'All' ? [...products] : products.filter(p => p.cat === activeCategory);
+        rows.sort((a, b) => activeSortKey === 'price' ? a.price - b.price : a.name.localeCompare(b.name));
+        return rows;
+    }
+
+    // ── ProductCard component ─────────────────────────────────────────────────
+    class ProductCard extends ComponentWrapper {
+        constructor(product) {
+            super();
+            this._p = product;
+        }
+
+        prebuild() {
+            const p = this._p;
+            this.element.addClass('card');
+
+            // Image
+            const img = this.element.createElement().setType('div').addClass('card-image').setContent(p.icon);
+
+            // Card body
+            const body = this.element.createElement().setType('div').addClass('card-body');
+
+            const topRow = this.element.createElement().setType('div').addClass('card-top');
+            const catEl  = this.element.createElement().setType('span').addClass('card-cat').setContent(p.cat);
+            const topChildren = [catEl];
+            if (p.badge) {
+                topChildren.push(
+                    this.element.createElement().setType('span')
+                        .addClass('badge')
+                        .addClass(p.badge === 'new' ? 'badge-new' : 'badge-sale')
+                        .setContent(p.badge)
+                );
+            }
+            topRow.setChildren(topChildren);
+
+            const nameEl = this.element.createElement().setType('h3').addClass('card-name').setContent(p.name);
+            const descEl = this.element.createElement().setType('p').addClass('card-desc').setContent(p.desc);
+            body.setChildren([topRow, nameEl, descEl]);
+
+            // Card footer
+            const footer  = this.element.createElement().setType('div').addClass('card-footer');
+            const priceEl = this.element.createElement().setType('span').addClass('card-price').setContent(`$${p.price}`);
+
+            const addBtn  = this.element.createElement().setType('button').addClass('add-btn');
+            if (cart.has(p.id)) { addBtn.addClass('in-cart'); addBtn.setContent('✓ Added'); }
+            else                { addBtn.setContent('+ Add'); }
+
+            addBtn.addEvent('click', () => {
+                if (cart.has(p.id)) {
+                    cart.delete(p.id);
+                    addBtn.removeClass('in-cart');
+                    addBtn.setContent('+ Add');
+                } else {
+                    cart.add(p.id);
+                    addBtn.addClass('in-cart');
+                    addBtn.setContent('✓ Added');
+                }
+                cartCount.value = String(cart.size);
+            });
+
+            footer.setChildren([priceEl, addBtn]);
+
+            // Single setChildren call for the whole card
+            this.element.setChildren([img, body, footer]);
+        }
+    }
+
+    // ── References set after attach ───────────────────────────────────────────
+    let grid       = null;
+    let countNumEl = null;
+    const filterBtns = {};
+
+    // ── Render grid ───────────────────────────────────────────────────────────
+    function renderGrid() {
+        const rows = getRows();
+        countNumEl.setContent(String(rows.length));
+
+        if (rows.length === 0) {
+            grid.setChildren([
+                grid.createElement().setType('p').addClass('empty').setContent('No products in this category.')
+            ]);
+            return;
+        }
+        grid.setChildren(rows.map(p => new ProductCard(p).build()));
+    }
+
+    // ── Category switch ───────────────────────────────────────────────────────
+    function setCategory(cat) {
+        filterBtns[activeCategory].removeClass('active');
+        activeCategory = cat;
+        filterBtns[activeCategory].addClass('active');
+        renderGrid();
+    }
+
+    // ── Build page tree ───────────────────────────────────────────────────────
+    const page = new SimpleHtmlElement().setType('div').addClass('page');
+
+    // Header
+    const pageTitle = page.createElement().setType('h1').addClass('page-title').setContent('Product Catalog');
+
+    const cartBtn     = page.createElement().setType('button').addClass('cart-btn');
+    const cartLabel   = cartBtn.createElement().setType('span').setContent('🛒 Cart');
+    const cartCountEl = cartBtn.createElement().setType('span').addClass('cart-count').setContent('0');
+    cartCount.addObserver(cartCountEl, 'setContent');
+    cartBtn.setChildren([cartLabel, cartCountEl]);
+
+    const header = page.createElement().setType('div').addClass('page-header');
+    header.setChildren([pageTitle, cartBtn]);
+
+    // Controls
+    const controls = page.createElement().setType('div').addClass('controls');
+
+    categories.forEach(cat => {
+        const btn = page.createElement().setType('button').addClass('filter-btn');
+        if (cat === 'All') btn.addClass('active');
+        btn.setContent(cat);
+        btn.addEvent('click', () => setCategory(cat));
+        filterBtns[cat] = btn;
+    });
+
+    const sortSel = page.createElement().setType('select').addClass('sort-select');
+    sortSel.setChildren(
+        [['name','Name A–Z'], ['price','Price ↑']].map(([val, label]) => {
+            const opt = page.createElement().setType('option').setAttribute('value', val).setContent(label);
+            if (val === activeSortKey) opt.setAttribute('selected', 'true');
+            return opt;
+        })
+    );
+    sortSel.addEvent('change', e => { activeSortKey = e.target.value; renderGrid(); });
+
+    controls.setChildren([...categories.map(c => filterBtns[c]), sortSel]);
+
+    // Result count line
+    const countLine = page.createElement().setType('p').addClass('result-line');
+    countNumEl      = page.createElement().setType('strong').setContent(String(products.length));
+    const countSuffix = page.createElement().setType('span').setContent(` of ${products.length} products`);
+    countLine.setChildren([countNumEl, countSuffix]);
+
+    // Grid
+    grid = page.createElement().setType('div').addClass('grid');
+
+    // Assemble full page
+    page.setChildren([header, controls, countLine, grid]);
+
+    // Draw
+    page.attach('#app');
+
+    // Initial render (grid is now drawn)
+    renderGrid();
+
+    </script>
+</body>
+</html>

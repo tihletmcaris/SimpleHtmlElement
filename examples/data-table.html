@@ -221,6 +221,7 @@
         }
     }
 
+
     // ── Render table body ─────────────────────────────────────────────────────
     function renderRows() {
         const rows = getRows();
@@ -230,12 +231,8 @@
 
         if (!tableBody) return;
 
-        tableBody.clear();
-        tableBody.elementDrawn = false;  // batch mode: suppress per-addElement redraws
-
         if (rows.length === 0) {
-            const emptyRow = new SimpleHtmlElement()
-                .setType('tr');
+            const emptyRow = new SimpleHtmlElement().setType('tr');
             emptyRow.addChild()
                 .setType('td')
                 .setAttribute('colspan', '5')
@@ -244,15 +241,10 @@
                 .addStyle('color',       '#475569')
                 .addStyle('font-size',   '0.9rem')
                 .setContent('No employees match your search.');
-            tableBody.addElement(emptyRow);
+            tableBody.setChildren([emptyRow]);
         } else {
-            rows.forEach((emp, i) => {
-                tableBody.addElement(new TableRow(emp, i).build());
-            });
+            tableBody.setChildren(rows.map((emp, i) => new TableRow(emp, i).build()));
         }
-
-        tableBody.elementDrawn = true;
-        tableBody.redraw();  // single redraw after all rows are added
     }
 
     // ── Render column headers ─────────────────────────────────────────────────
@@ -269,24 +261,18 @@
             { label: 'Status',     key: 'status' },
         ];
 
-        headerRow.clear();
-        headerRow.elementDrawn = false;  // batch mode
-        columns.forEach(col => {
-            headerRow.addElement(
-                new SortHeader(col.label, col.key, sortKey.value, sortDir.value, (key) => {
-                    if (sortKey.value === key) {
-                        sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
-                    } else {
-                        sortKey.value = key;
-                        sortDir.value = 'asc';
-                    }
-                    renderHeaders();
-                    renderRows();
-                }).build()
-            );
-        });
-        headerRow.elementDrawn = true;
-        headerRow.redraw();  // single redraw
+        headerRow.setChildren(columns.map(col =>
+            new SortHeader(col.label, col.key, sortKey.value, sortDir.value, (key) => {
+                if (sortKey.value === key) {
+                    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortKey.value = key;
+                    sortDir.value = 'asc';
+                }
+                renderHeaders();
+                renderRows();
+            }).build()
+        ));
     }
 
     // ── Page layout ───────────────────────────────────────────────────────────
